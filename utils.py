@@ -42,17 +42,19 @@ def prepare_trainer_input(task, input_params):
 
     # define config
     configuration = FNetConfig(
-        use_tpu_fourier_optimizations=False,
+        use_tpu_fourier_optimizations=True,
         tpu_short_seq_length=input_params["max_length"],
         num_labels=num_labels,
     )
 
     # define loader
-    loader, _ = init_loader(
+    loader, y, df_s = init_loader(
         task=task,
         max_length=input_params["max_length"],
         batch_size=input_params["batch_size"],
     )
+    # config needs to have gft_mat
+    # configuration.gft_mat = torch.eye(configuration.tpu_short_seq_length)
 
     # define model
     model = FNetForSequenceClassification.from_pretrained(
@@ -107,6 +109,8 @@ def init_loader(task, max_length, batch_size):
 
         input_ids[split], token_type_ids[split] = input.input_ids, input.token_type_ids
 
+        df_s[split]["input_ids"] = input_ids[split].tolist()
+
         datasets[split] = Data.TensorDataset(
             input_ids[split], token_type_ids[split], torch.LongTensor(y[split])
         )
@@ -115,7 +119,7 @@ def init_loader(task, max_length, batch_size):
             datasets[split], batch_size=batch_size, shuffle=False
         )
 
-    return loader, y
+    return loader, y, df_s
 
 
 def get_device():

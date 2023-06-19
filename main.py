@@ -31,7 +31,7 @@ trainer = Trainer(
     seed_val=input_params["seed_val"],
 )
 
-loss_values = trainer._train()
+# loss_values = trainer._train()
 
 eval_metrics = trainer._eval(loader_key="train")
 print(eval_metrics)

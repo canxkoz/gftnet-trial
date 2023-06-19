@@ -70,7 +70,6 @@ class FNetBasicFourierTransform(nn.Module):
     def __init__(self, config):
         super().__init__()
         self._init_fourier_transform(config)
-        # config.tpu_short_seq_length = 16
 
     def _init_fourier_transform(self, config):
         if not config.use_tpu_fourier_optimizations:
@@ -79,14 +78,16 @@ class FNetBasicFourierTransform(nn.Module):
             if is_scipy_available():
                 self.register_buffer(
                     "dft_mat_hidden",
-                    torch.tensor(linalg.dft(config.hidden_size), dtype=torch.complex32),
+                    torch.tensor(linalg.dft(config.hidden_size), dtype=torch.complex64),
                 )
-                self.register_buffer(
-                    "dft_mat_seq",
-                    torch.tensor(
-                        linalg.dft(config.tpu_short_seq_length), dtype=torch.complex64
-                    ),
-                )
+                # self.register_buffer(
+                #     "dft_mat_seq",
+                #     torch.tensor(
+                #         linalg.dft(config.tpu_short_seq_length), dtype=torch.complex64
+                #     ),
+                # )
+                self.register_buffer("dft_mat_seq", config.gft_mat)
+
                 self.fourier_transform = partial(
                     two_dim_matmul,
                     matrix_dim_one=self.dft_mat_seq,
@@ -215,7 +216,6 @@ class FNetEmbeddings(nn.Module):
         embeddings = self.projection(embeddings)
         embeddings = self.dropout(embeddings)
         return embeddings
-
 
 
 class FNetBasicOutput(nn.Module):

@@ -16,7 +16,7 @@
 
 from transformers.configuration_utils import PretrainedConfig
 from transformers.utils import logging
-
+import torch
 
 logger = logging.get_logger(__name__)
 
@@ -128,3 +128,4 @@ class FNetConfig(PretrainedConfig):
         self.layer_norm_eps = layer_norm_eps
         self.use_tpu_fourier_optimizations = use_tpu_fourier_optimizations
         self.tpu_short_seq_length = tpu_short_seq_length
+        self.gft_mat = torch.eye(self.tpu_short_seq_length, dtype=torch.complex64)

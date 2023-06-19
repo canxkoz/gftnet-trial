@@ -70,6 +70,11 @@ class Trainer:
             )
 
             with torch.no_grad():
+                self.model.config.gft_mat = torch.rand(
+                    self.model.config.tpu_short_seq_length,
+                    self.model.config.tpu_short_seq_length,
+                    dtype=torch.complex64,
+                )
                 logits = self.model(
                     b_input_ids, token_type_ids=b_input_tokent_type_ids
                 ).logits
