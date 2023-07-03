@@ -141,7 +141,7 @@ fnet_config = FNetConfig(
     use_tpu_fourier_optimizations=True,
     tpu_short_seq_length=input_params["max_length"],
     num_labels=num_labels,
-    original_version=False,
+    original_version=args.flag,
     device=device,
 )
 
