@@ -99,8 +99,9 @@ class FNetBasicFourierTransform(nn.Module):
 
                 self.fourier_transform = partial(
                     two_dim_matmul,
-                    matrix_dim_one=self.dft_mat_seq,
-                    matrix_dim_two=self.dft_mat_hidden,
+                    matrix_dim_one=self.dft_mat_seq.to(config.device),
+                    matrix_dim_two=self.dft_mat_hidden.to(config.device),
+                    original_version=config.original_version,
                 )
             else:
                 logging.warning(
@@ -122,19 +123,20 @@ class FNetBasicFourierTransform(nn.Module):
 
 
 # Adapted from https://github.com/google-research/google-research/blob/master/f_net/fourier.py
-def _two_dim_matmul(x, matrix_dim_one, matrix_dim_two):
+def _two_dim_matmul(x, matrix_dim_one, matrix_dim_two, original_version):
     """Applies 2D matrix multiplication to 3D input arrays."""
     seq_length = x.shape[1]
     matrix_dim_one = matrix_dim_one[:seq_length, :seq_length]
-    x = x.type(torch.complex64)
-    return torch.einsum(
-        "bij,jk,ni->bnk", x, matrix_dim_two.to("cuda"), matrix_dim_one.to("cuda")
-    )
+    if original_version:
+        x = x.type(torch.complex64)
+    else:
+        x = x.type(torch.float32)
+    return torch.einsum("bij,jk,ni->bnk", x, matrix_dim_two, matrix_dim_one)
 
 
 # # Adapted from https://github.com/google-research/google-research/blob/master/f_net/fourier.py
-def two_dim_matmul(x, matrix_dim_one, matrix_dim_two):
-    return _two_dim_matmul(x, matrix_dim_one, matrix_dim_two)
+def two_dim_matmul(x, matrix_dim_one, matrix_dim_two, original_version):
+    return _two_dim_matmul(x, matrix_dim_one, matrix_dim_two, original_version)
 
 
 # Adapted from https://github.com/google-research/google-research/blob/master/f_net/fourier.py
