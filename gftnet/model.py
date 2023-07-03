@@ -76,17 +76,26 @@ class FNetBasicFourierTransform(nn.Module):
             self.fourier_transform = partial(torch.fft.fftn, dim=(1, 2))
         elif config.max_position_embeddings <= 4096:
             if is_scipy_available():
-                self.register_buffer(
-                    "dft_mat_hidden",
-                    torch.tensor(linalg.dft(config.hidden_size), dtype=torch.complex64),
-                )
-                # self.register_buffer(
-                #     "dft_mat_seq",
-                #     torch.tensor(
-                #         linalg.dft(config.tpu_short_seq_length), dtype=torch.complex64
-                #     ),
-                # )
-                self.register_buffer("dft_mat_seq", config.gft_mat)
+                if config.original_version:
+                    self.register_buffer(
+                        "dft_mat_hidden",
+                        torch.tensor(
+                            linalg.dft(config.hidden_size), dtype=torch.complex64
+                        ),
+                    )
+                    self.register_buffer(
+                        "dft_mat_seq",
+                        torch.tensor(
+                            linalg.dft(config.tpu_short_seq_length),
+                            dtype=torch.complex64,
+                        ),
+                    )
+                else:
+                    self.register_buffer(
+                        "dft_mat_hidden",
+                        torch.eye(config.hidden_size, dtype=torch.float32),
+                    )
+                    self.register_buffer("dft_mat_seq", config.gft_mat)
 
                 self.fourier_transform = partial(
                     two_dim_matmul,
@@ -117,8 +126,10 @@ def _two_dim_matmul(x, matrix_dim_one, matrix_dim_two):
     """Applies 2D matrix multiplication to 3D input arrays."""
     seq_length = x.shape[1]
     matrix_dim_one = matrix_dim_one[:seq_length, :seq_length]
-    x = x.type(torch.complex64)
-    return torch.einsum("bij,jk,ni->bnk", x, matrix_dim_two, matrix_dim_one)
+    x = x.type(torch.float32)
+    return torch.einsum(
+        "bij,jk,ni->bnk", x, matrix_dim_two.to("mps"), matrix_dim_one.to("mps")
+    )
 
 
 # # Adapted from https://github.com/google-research/google-research/blob/master/f_net/fourier.py
@@ -128,15 +139,6 @@ def two_dim_matmul(x, matrix_dim_one, matrix_dim_two):
 
 # Adapted from https://github.com/google-research/google-research/blob/master/f_net/fourier.py
 def fftn(x):
-    """
-    Applies n-dimensional Fast Fourier Transform (FFT) to input array.
-
-    Args:
-        x: Input n-dimensional array.
-
-    Returns:
-        n-dimensional Fourier transform of input n-dimensional array.
-    """
     out = x
     for axis in reversed(range(x.ndim)[1:]):  # We don't need to apply FFT to last axis
         out = torch.fft.fft(out, axis=axis)

@@ -104,6 +104,7 @@ class FNetConfig(PretrainedConfig):
         bos_token_id=1,
         eos_token_id=2,
         num_labels=2,
+        original_version=True,
         **kwargs,
     ):
         super().__init__(
@@ -128,4 +129,6 @@ class FNetConfig(PretrainedConfig):
         self.layer_norm_eps = layer_norm_eps
         self.use_tpu_fourier_optimizations = use_tpu_fourier_optimizations
         self.tpu_short_seq_length = tpu_short_seq_length
-        self.gft_mat = torch.eye(self.tpu_short_seq_length, dtype=torch.complex64)
+        self.original_version = original_version
+
+        self.gft_mat = torch.eye(self.tpu_short_seq_length, dtype=torch.float32)

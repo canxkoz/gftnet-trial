@@ -1,41 +1,44 @@
 from typing import Callable
-import random
 import torch
 import numpy as np
 from tqdm import tqdm
+from utils import format_time, set_seed, return_model_device
 
 
-class Trainer:
+class EngineConfig:
+    def __init__(self) -> None:
+        pass
+
+
+class Engine:
     def __init__(
         self,
-        n_epochs: int,
         model,
         optimizer: torch.optim.Optimizer,
         scheduler: torch.optim.lr_scheduler._LRScheduler,
         metric_func: Callable[[np.ndarray, np.ndarray], dict],
-        loader: torch.utils.data.DataLoader,
-        device,
-        seed_val: int = 42,
+        loader,
+        input_params,
     ) -> None:
-        self.n_epochs = n_epochs
-        self.seed_val = seed_val
         self.model = model
         self.scheduler = scheduler
         self.optimizer = optimizer
 
+        # Create your PyTorch model
+
+        # Check if the model is on an MPS device
+        s = return_model_device(model)
+        print(f"Model is on {s} device:")
+
         self.metric_func = metric_func
         self.loader = loader
-        self.device = device
 
-        self._set_seed()
+        self.n_epochs = input_params["n_epochs"]
+        self.device = input_params["device"]
+        self.seed_val = input_params["seed_val"]
+        set_seed(self.seed_val)
 
-    def _set_seed(self) -> None:
-        random.seed(self.seed_val)
-        np.random.seed(self.seed_val)
-        torch.manual_seed(self.seed_val)
-        torch.cuda.manual_seed_all(self.seed_val)
-
-    def _train(self):
+    def train(self):
         loss_values = []
         for _ in tqdm(range(0, self.n_epochs), desc="Epoch"):
             self.model.train()
@@ -52,8 +55,6 @@ class Trainer:
                 ).loss
                 total_loss += loss.item()
                 loss.backward()
-
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
                 self.optimizer.step()
                 self.scheduler.step()
 
@@ -61,8 +62,7 @@ class Trainer:
             loss_values.append(avg_train_loss)
         return loss_values
 
-    def _eval(self, loader_key="validation"):
-        val_metric, n_eval_steps = 0, 0
+    def eval(self, loader_key="validation"):
         eval_metrics = []
         for _, batch in enumerate(self.loader[loader_key]):
             b_input_ids, b_input_tokent_type_ids, b_labels = tuple(
@@ -70,24 +70,27 @@ class Trainer:
             )
 
             with torch.no_grad():
-                self.model.config.gft_mat = torch.rand(
-                    self.model.config.tpu_short_seq_length,
-                    self.model.config.tpu_short_seq_length,
-                    dtype=torch.complex64,
-                )
-                logits = self.model(
-                    b_input_ids, token_type_ids=b_input_tokent_type_ids
-                ).logits
+                # self.model.config.gft_mat = torch.rand(
+                #     self.model.config.tpu_short_seq_length,
+                #     self.model.config.tpu_short_seq_length,
+                #     dtype=torch.complex64,
+                # ).to(self.device)
+
+                logits = self.model(b_input_ids, b_input_tokent_type_ids).logits
 
             logits = logits.detach().cpu().numpy()
             logits = np.argmax(logits, axis=1).flatten()
             label_ids = b_labels.to("cpu").numpy()  # TODO: check if this is necessary
 
-            # this returns a dictionary
+            """
+            self.metric_func can be acc, f1, etc. depending on the task
+            for sst2 it is acc
+            it will return the acc of the current batch
+            """
             d = self.metric_func(predictions=logits, references=label_ids)
-            key = list(d.keys())[0]  # sometimes accuracy sometimes f1
-            val_metric += d[key]
-            n_eval_steps += 1
+            # key = list(d.keys())[0]  # sometimes accuracy sometimes f1
+            # val_metric += d[key]
+            # n_eval_steps += 1
 
-        eval_metrics.append(val_metric / n_eval_steps)
+            eval_metrics.append(d)
         return eval_metrics
