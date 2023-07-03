@@ -44,7 +44,7 @@ fnet_config = FNetConfig(
 )
 
 dataset = Dataset(
-    task, input_params["max_length"], input_params["batch_size"], to_end=100
+    task, input_params["max_length"], input_params["batch_size"], to_end=-1
 )
 
 loader = dataset.loader
