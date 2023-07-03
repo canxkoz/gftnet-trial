@@ -29,7 +29,8 @@ input_params = {
     "lr": 2e-5,
 }
 
-task = "mnli"
+# chose sst2 or cola
+task = "sst2"
 task = "mnli" if task == "mnli-mm" else task
 num_labels = 3 if task.startswith("mnli") else 1 if task == "stsb" else 2
 device = input_params["device"]
