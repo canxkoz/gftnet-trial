@@ -6,7 +6,15 @@ from transformers import logging
 from gftnet.model import FNetForSequenceClassification as FNetSC
 from gftnet.configuration_fnet import FNetConfig
 import torch.optim as optim
+import argparse
 
+parser = argparse.ArgumentParser(description="Description of your script")
+parser.add_argument("-f", "--flag", action="store_true", help="Enable the flag")
+
+# Parse the command-line arguments
+args = parser.parse_args()
+
+# Call your function with the provided flag argument
 from evaluate import load
 
 logging.set_verbosity_error()
@@ -30,7 +38,7 @@ fnet_config = FNetConfig(
     use_tpu_fourier_optimizations=True,
     tpu_short_seq_length=input_params["max_length"],
     num_labels=num_labels,
-    original_version=False,
+    original_version=args.flag,
     device=device,
 )
 
