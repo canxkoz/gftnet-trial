@@ -18,6 +18,7 @@ class Engine:
         scheduler: torch.optim.lr_scheduler._LRScheduler,
         metric_func: Callable[[np.ndarray, np.ndarray], dict],
         loader,
+        is_regression: bool,
         input_params,
     ) -> None:
         self.model = model
@@ -37,6 +38,7 @@ class Engine:
         self.device = input_params["device"]
         self.seed_val = input_params["seed_val"]
         set_seed(self.seed_val)
+        self.is_regression = is_regression
 
     def train(self):
         loss_values = []
@@ -64,7 +66,7 @@ class Engine:
 
     def eval(self, loader_key="validation"):
         eval_metrics = []
-        for _, batch in enumerate(self.loader[loader_key]):
+        for i, batch in enumerate(self.loader[loader_key]):
             b_input_ids, b_input_tokent_type_ids, b_labels = tuple(
                 t.to(self.device) for t in batch
             )
@@ -79,7 +81,8 @@ class Engine:
                 logits = self.model(b_input_ids, b_input_tokent_type_ids).logits
 
             logits = logits.detach().cpu().numpy()
-            logits = np.argmax(logits, axis=1).flatten()
+            logits = np.argmax(logits, axis=1).flatten() if not self.is_regression \
+                else logits.squeeze() 
             label_ids = b_labels.to("cpu").numpy()  # TODO: check if this is necessary
 
             """
